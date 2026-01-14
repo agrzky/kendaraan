@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// User Model - untuk autentikasi dan manajemen user
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles Vehicle[]
+
+  @@map("users")
+}
+
+// Vehicle Model - data kendaraan (simplified)
+model Vehicle {
+  id           String  @id @default(cuid())
+  licensePlate String  @unique // Nomor Polisi
+  brand        String // Merek (Toyota, Honda, Yamaha, dll)
+  model        String // Model (Avanza, Xride, dll)
+  year         Int // Tahun pembuatan
+  fuelType     String? // Jenis (MPV, Motor, Pickup, dll)
+
+  // Relasi dengan User
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Status
+  status String @default("active") // active, maintenance, inactive
+
+  // Service Information
+  lastServiceDate DateTime? // Tanggal servis terakhir
+  nextServiceDate DateTime? // Tanggal servis berikutnya
+  lastServiceKm   Int? // Kilometer saat servis terakhir
+  nextServiceKm   Int? // Kilometer untuk servis berikutnya
+
+  // Tax Information
+  taxExpireDate DateTime? // Tanggal expired pajak
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi dengan Maintenance
+  maintenances Maintenance[]
+  fuelRecords  FuelRecord[]
+  tollRecords  TollRecord[]
+
+  @@index([ownerId])
+  @@index([licensePlate])
+  @@map("vehicles")
+}
+
+// Maintenance Model - riwayat perawatan kendaraan
+model Maintenance {
+  id String @id @default(cuid())
+
+  // Relasi dengan Vehicle
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  // Detail Perawatan
+  type        String // service, repair, inspection
+  description String
+  cost        Float? // Biaya perawatan
+  mileage     Int? // Kilometer saat perawatan
+  status      String @default("pending") // pending, in-progress, completed
+
+  // Tanggal
+  maintenanceDate DateTime
+  nextServiceDate DateTime?
+
+  // Workshop/Bengkel
+  workshop   String?
+  technician String?
+
+  // Notes
+  notes String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vehicleId])
+  @@index([maintenanceDate])
+  @@map("maintenances")
+}
+
+// Fuel Record Model - Riwayat pengisian BBM
+model FuelRecord {
+  id String @id @default(cuid())
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  date          DateTime
+  driver        String?
+  fuelType      String // Jenis BBM (Pertalite, Solar, dll)
+  liters        Float // Jumlah Liter
+  pricePerLiter Float // Harga per Liter
+  totalCost     Float // Total Biaya
+  receiptUrl    String? // Foto Struk
+  remarks       String? // Keterangan tambahan
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vehicleId])
+  @@index([date])
+  @@map("fuel_records")
+}
+
+// Toll Record Model - Riwayat pengeluaran Tol
+model TollRecord {
+  id String @id @default(cuid())
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  date       DateTime
+  driver     String?
+  cost       Float // Biaya Tol
+  receiptUrl String? // Foto Struk
+  remarks    String? // Keterangan tambahan
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vehicleId])
+  @@index([date])
+  @@map("toll_records")
+}

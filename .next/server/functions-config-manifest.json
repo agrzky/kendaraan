@@ -1,0 +1,1 @@
+{"version":1,"functions":{"/api/auth/me":{},"/api/auth/refresh":{},"/api/auth/logout":{},"/api/auth/login":{},"/api/fuel":{},"/api/dashboard/stats":{},"/":{},"/api/toll":{},"/api/maintenances":{},"/api/vehicles":{}}}
