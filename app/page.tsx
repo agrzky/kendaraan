@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 import { AnimatedBackground } from "@/components/animated-background";
-import Image from "next/image";
 import { Car, BarChart3, ShieldCheck } from "lucide-react";
 
 // Force dynamic rendering for this page (uses cookies for auth check)
@@ -23,13 +22,12 @@ function LoginContent() {
             <div className="relative group">
               <div className="absolute inset-0 bg-blue-500 rounded-2xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
               <div className="relative bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl shadow-2xl hover:bg-white/15 hover:scale-105 transition-all duration-300">
-                <Image
+                <img
                   src="/logo-bkn.png"
                   alt="Logo BKN"
                   width={64}
                   height={64}
                   className="drop-shadow-2xl w-[60px] h-[60px] lg:w-[72px] lg:h-[72px]"
-                  priority
                 />
               </div>
             </div>

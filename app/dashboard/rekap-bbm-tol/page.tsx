@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useState, useEffect, memo, useMemo } from "react";
 import { AuthGuard } from "@/components/auth-guard";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import {
@@ -62,6 +61,28 @@ interface Vehicle {
   model: string;
   fuelType: string;
 }
+
+// Logo BKN menggunakan CSS background-image untuk mencegah re-request
+// Komponen ini menggunakan div dengan background-image bukan img tag
+const LogoBKN = memo(
+  function LogoBKN({ size = 60 }: { size?: number }) {
+    return (
+      <div
+        role="img"
+        aria-label="Logo BKN"
+        style={{
+          width: size,
+          height: size,
+          backgroundImage: 'url("/logo-bkn.png")',
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+        }}
+      />
+    );
+  },
+  () => true // Always return true from comparison = never re-render
+);
 
 export default function RekapBbmTolPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -759,13 +780,7 @@ export default function RekapBbmTolPage() {
                 <Card className="border-0 shadow-xl bg-white rounded-[2rem] overflow-hidden mt-6 print-area">
                   <CardHeader className="bg-white px-4 py-2 border-b border-gray-100 flex flex-row items-center justify-between">
                     <div className="w-[100px] flex justify-start">
-                      <Image
-                        src="/logo-bkn.png"
-                        alt="Logo BKN"
-                        width={60}
-                        height={60}
-                        className="object-contain"
-                      />
+                      <LogoBKN />
                     </div>
                     <div className="flex-1 text-center">
                       <CardTitle className="font-bold text-black uppercase text-lg leading-snug">
@@ -1145,13 +1160,7 @@ export default function RekapBbmTolPage() {
                 <Card className="border-0 shadow-xl bg-white rounded-[2rem] overflow-hidden mt-6 print-area">
                   <CardHeader className="bg-white px-4 py-2 border-b border-gray-100 flex flex-row items-center justify-between">
                     <div className="w-[100px] flex justify-start">
-                      <Image
-                        src="/logo-bkn.png"
-                        alt="Logo BKN"
-                        width={60}
-                        height={60}
-                        className="object-contain"
-                      />
+                      <LogoBKN />
                     </div>
                     <div className="flex-1 text-center">
                       <CardTitle className="font-bold text-black uppercase text-lg leading-snug">

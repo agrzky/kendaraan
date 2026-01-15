@@ -91,8 +91,8 @@ export async function PUT(
     if (data.description !== undefined) updateData.description = data.description
     if (data.cost !== undefined) updateData.cost = data.cost !== null ? parseFloat(data.cost) : null
     if (data.mileage !== undefined) updateData.mileage = data.mileage !== null ? parseInt(data.mileage) : null
-    if (data.maintenanceDate !== undefined) updateData.maintenanceDate = data.maintenanceDate ? new Date(data.maintenanceDate) : undefined
-    if (data.nextServiceDate !== undefined) updateData.nextServiceDate = data.nextServiceDate ? new Date(data.nextServiceDate) : null
+    if (data.maintenanceDate !== undefined) updateData.maintenanceDate = data.maintenanceDate ? new Date(data.maintenanceDate + 'T12:00:00') : undefined
+    if (data.nextServiceDate !== undefined) updateData.nextServiceDate = data.nextServiceDate ? new Date(data.nextServiceDate + 'T12:00:00') : null
     if (data.workshop !== undefined) updateData.workshop = data.workshop
     if (data.technician !== undefined) updateData.technician = data.technician
     if (data.notes !== undefined) updateData.notes = data.notes

@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
     const record = await prisma.fuelRecord.create({
       data: {
         vehicleId: data.vehicleId,
-        date: new Date(data.date),
+        // Add T12:00:00 to prevent timezone shift issues
+        date: new Date(data.date + 'T12:00:00'),
         driver: data.driver,
         fuelType: data.fuelType,
         liters: parseFloat(data.liters),
@@ -92,7 +93,8 @@ export async function PUT(request: NextRequest) {
     const record = await prisma.fuelRecord.update({
       where: { id: data.id },
       data: {
-        date: new Date(data.date),
+        // Add T12:00:00 to prevent timezone shift issues
+        date: new Date(data.date + 'T12:00:00'),
         driver: data.driver,
         fuelType: data.fuelType,
         liters: parseFloat(data.liters),

@@ -79,8 +79,9 @@ export async function POST(request: NextRequest) {
           ? (typeof data.cost === 'number' ? data.cost : parseFloat(data.cost))
           : null,
         mileage: data.mileage ? parseInt(data.mileage) : null,
-        maintenanceDate: new Date(data.maintenanceDate),
-        nextServiceDate: data.nextServiceDate ? new Date(data.nextServiceDate) : null,
+        // Add T12:00:00 to prevent timezone shift issues
+        maintenanceDate: new Date(data.maintenanceDate + 'T12:00:00'),
+        nextServiceDate: data.nextServiceDate ? new Date(data.nextServiceDate + 'T12:00:00') : null,
         workshop: data.workshop,
         technician: data.technician,
         notes: data.notes,

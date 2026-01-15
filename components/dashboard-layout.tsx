@@ -24,7 +24,6 @@ import {
   Wrench,
   Receipt,
 } from "lucide-react";
-import Image from "next/image";
 import { useAuth } from "@/components/auth-guard";
 
 interface DashboardLayoutProps {
@@ -66,7 +65,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className={`flex flex-col h-full ${mobile ? "w-full" : "w-full"}`}>
       <div className="flex items-center gap-4 px-6 py-8">
         <div className="relative w-12 h-12 flex items-center justify-center">
-          <Image
+          <img
             src="/logo-bkn.png"
             alt="Logo BKN"
             width={48}
