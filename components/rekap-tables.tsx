@@ -67,12 +67,13 @@ const LogoBKN = memo(function LogoBKN() {
   );
 });
 
-// Format tanggal helper
+// Format tanggal helper - use UTC to match how dates are stored
 const formatDate = (date: Date) => {
   return date.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 };
 
@@ -184,7 +185,8 @@ export const RekapBBMTable = memo(function RekapBBMTable({
                                   day: "numeric",
                                   month: "long",
                                   year: "numeric",
-                                }
+                                  timeZone: "UTC",
+                                },
                               )}
                             </td>
                             <td className="px-3 py-2 text-center text-sm text-black border-r border-black">
@@ -198,7 +200,7 @@ export const RekapBBMTable = memo(function RekapBBMTable({
                                 <span>Rp</span>
                                 <span>
                                   {record.pricePerLiter?.toLocaleString(
-                                    "id-ID"
+                                    "id-ID",
                                   )}
                                 </span>
                               </div>
@@ -207,7 +209,9 @@ export const RekapBBMTable = memo(function RekapBBMTable({
                               <div className="flex justify-between w-full px-2">
                                 <span>Rp</span>
                                 <span>
-                                  {record.totalCost?.toLocaleString("id-ID")}
+                                  {Math.round(
+                                    record.totalCost || 0,
+                                  ).toLocaleString("id-ID")}
                                 </span>
                               </div>
                             </td>
@@ -257,7 +261,7 @@ export const RekapBBMTable = memo(function RekapBBMTable({
                             </td>
                           </tr>
                         );
-                      }
+                      },
                     );
                   })()
                 ) : (
@@ -290,7 +294,9 @@ export const RekapBBMTable = memo(function RekapBBMTable({
                   <td className="px-3 py-2 text-right text-sm text-black">
                     <div className="flex justify-between w-full px-2">
                       <span>Rp</span>
-                      <span>{totalCost.toLocaleString("id-ID")}</span>
+                      <span>
+                        {Math.round(totalCost).toLocaleString("id-ID")}
+                      </span>
                     </div>
                   </td>
                   <td className="no-print"></td>
@@ -421,7 +427,8 @@ export const RekapTolTable = memo(function RekapTolTable({
                                   day: "numeric",
                                   month: "long",
                                   year: "numeric",
-                                }
+                                  timeZone: "UTC",
+                                },
                               )}
                             </td>
                             <td className="px-3 py-2 text-center text-sm text-black border-r border-black">
@@ -489,7 +496,7 @@ export const RekapTolTable = memo(function RekapTolTable({
                             </td>
                           </tr>
                         );
-                      }
+                      },
                     );
                   })()
                 ) : (

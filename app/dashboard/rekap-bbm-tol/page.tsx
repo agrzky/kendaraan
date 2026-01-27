@@ -81,7 +81,7 @@ const LogoBKN = memo(
       />
     );
   },
-  () => true // Always return true from comparison = never re-render
+  () => true, // Always return true from comparison = never re-render
 );
 
 export default function RekapBbmTolPage() {
@@ -122,28 +122,33 @@ export default function RekapBbmTolPage() {
   const [selectedMonthToll, setSelectedMonthToll] = useState(currentMonth);
 
   // Filtered Records by Month
+  // Use UTC methods since API stores dates at UTC noon (12:00:00 UTC)
   const filteredFuelRecords = fuelRecords.filter((r) => {
-    const recordMonth = new Date(r.date).toISOString().slice(0, 7);
+    const recordDate = new Date(r.date);
+    const year = recordDate.getUTCFullYear();
+    const month = String(recordDate.getUTCMonth() + 1).padStart(2, "0");
+    const recordMonth = `${year}-${month}`;
     return recordMonth === selectedMonthFuel;
   });
 
   const filteredTollRecords = tollRecords.filter((r) => {
-    const recordMonth = new Date(r.date).toISOString().slice(0, 7);
+    const recordDate = new Date(r.date);
+    const year = recordDate.getUTCFullYear();
+    const month = String(recordDate.getUTCMonth() + 1).padStart(2, "0");
+    const recordMonth = `${year}-${month}`;
     return recordMonth === selectedMonthToll;
   });
 
   // Computed Totals (using filtered data)
   const totalLiters = filteredFuelRecords.reduce(
     (sum, r) => sum + (r.liters || 0),
-    0
+    0,
   );
-  const totalCost = filteredFuelRecords.reduce(
-    (sum, r) => sum + (r.totalCost || 0),
-    0
+  const totalCost = Math.round(
+    filteredFuelRecords.reduce((sum, r) => sum + (r.totalCost || 0), 0),
   );
-  const totalTollCost = filteredTollRecords.reduce(
-    (sum, r) => sum + (r.cost || 0),
-    0
+  const totalTollCost = Math.round(
+    filteredTollRecords.reduce((sum, r) => sum + (r.cost || 0), 0),
   );
   const selectedVehicleToll = vehicles.find((v) => v.id === tollForm.vehicleId);
 
@@ -174,7 +179,7 @@ export default function RekapBbmTolPage() {
             .filter((r: any) => r.vehicleId === vehicleId)
             .sort(
               (a: any, b: any) =>
-                new Date(a.date).getTime() - new Date(b.date).getTime()
+                new Date(a.date).getTime() - new Date(b.date).getTime(),
             );
           setFuelRecords(filtered);
         }
@@ -197,7 +202,7 @@ export default function RekapBbmTolPage() {
             .filter((r: any) => r.vehicleId === vehicleId)
             .sort(
               (a: any, b: any) =>
-                new Date(a.date).getTime() - new Date(b.date).getTime()
+                new Date(a.date).getTime() - new Date(b.date).getTime(),
             );
           setTollRecords(filtered);
         }
@@ -550,7 +555,7 @@ export default function RekapBbmTolPage() {
                   <Label>Total Biaya</Label>
                   <Input
                     value={parseInt(editForm.totalCost || "0").toLocaleString(
-                      "id-ID"
+                      "id-ID",
                     )}
                     disabled
                     className="bg-gray-100 font-bold"
@@ -733,7 +738,7 @@ export default function RekapBbmTolPage() {
                       <span className="text-xl font-extrabold text-orange-600">
                         Rp{" "}
                         {parseInt(fuelForm.totalCost || "0").toLocaleString(
-                          "id-ID"
+                          "id-ID",
                         )}
                       </span>
                     </div>
@@ -866,7 +871,7 @@ export default function RekapBbmTolPage() {
                                       index > 0 &&
                                       new Date(record.date).toDateString() ===
                                         new Date(
-                                          filteredFuelRecords[index - 1].date
+                                          filteredFuelRecords[index - 1].date,
                                         ).toDateString();
 
                                     if (!isSameDate) fuelNumber++;
@@ -882,7 +887,7 @@ export default function RekapBbmTolPage() {
                                         <td className="px-3 py-2 text-center text-sm text-black border-r border-black">
                                           {!isSameDate &&
                                             new Date(
-                                              record.date
+                                              record.date,
                                             ).toLocaleDateString("id-ID", {
                                               day: "numeric",
                                               month: "long",
@@ -895,7 +900,7 @@ export default function RekapBbmTolPage() {
                                             {
                                               minimumFractionDigits: 3,
                                               maximumFractionDigits: 3,
-                                            }
+                                            },
                                           )}
                                         </td>
                                         <td className="px-3 py-2 text-right text-sm text-black border-r border-black">
@@ -903,7 +908,7 @@ export default function RekapBbmTolPage() {
                                             <span>Rp</span>
                                             <span>
                                               {record.pricePerLiter?.toLocaleString(
-                                                "id-ID"
+                                                "id-ID",
                                               )}
                                             </span>
                                           </div>
@@ -912,9 +917,9 @@ export default function RekapBbmTolPage() {
                                           <div className="flex justify-between w-full px-2">
                                             <span>Rp</span>
                                             <span>
-                                              {record.totalCost?.toLocaleString(
-                                                "id-ID"
-                                              )}
+                                              {Math.round(
+                                                record.totalCost || 0,
+                                              ).toLocaleString("id-ID")}
                                             </span>
                                           </div>
                                         </td>
@@ -957,7 +962,7 @@ export default function RekapBbmTolPage() {
                                                   <AlertDialogAction
                                                     onClick={() =>
                                                       deleteFuelRecord(
-                                                        record.id
+                                                        record.id,
                                                       )
                                                     }
                                                     className="bg-red-600"
@@ -971,7 +976,7 @@ export default function RekapBbmTolPage() {
                                         </td>
                                       </tr>
                                     );
-                                  }
+                                  },
                                 );
                               })()
                             ) : (
@@ -1242,7 +1247,7 @@ export default function RekapBbmTolPage() {
                                 const grouped = new Map();
                                 filteredTollRecords.forEach((record) => {
                                   const dateKey = new Date(
-                                    record.date
+                                    record.date,
                                   ).toDateString();
                                   if (!grouped.has(dateKey)) {
                                     grouped.set(dateKey, new Map());
@@ -1283,7 +1288,7 @@ export default function RekapBbmTolPage() {
                                         <td className="px-3 py-2 text-center text-sm text-black border-r border-black">
                                           {isFirstForDate
                                             ? new Date(
-                                                dateKey
+                                                dateKey,
                                               ).toLocaleDateString("id-ID", {
                                                 day: "numeric",
                                                 month: "long",
@@ -1296,7 +1301,7 @@ export default function RekapBbmTolPage() {
                                             <span>Rp</span>
                                             <span>
                                               {Number(cost).toLocaleString(
-                                                "id-ID"
+                                                "id-ID",
                                               )}
                                             </span>
                                           </div>
@@ -1309,7 +1314,7 @@ export default function RekapBbmTolPage() {
                                             <span>Rp</span>
                                             <span>
                                               {data.total.toLocaleString(
-                                                "id-ID"
+                                                "id-ID",
                                               )}
                                             </span>
                                           </div>
@@ -1336,9 +1341,9 @@ export default function RekapBbmTolPage() {
                                                       ? `Semua ${
                                                           data.count
                                                         } transaksi dengan harga Rp ${Number(
-                                                          cost
+                                                          cost,
                                                         ).toLocaleString(
-                                                          "id-ID"
+                                                          "id-ID",
                                                         )} pada tanggal ini akan dihapus permanen.`
                                                       : "Data ini akan dihapus permanen."}
                                                   </AlertDialogDescription>
@@ -1352,8 +1357,8 @@ export default function RekapBbmTolPage() {
                                                       data.records.forEach(
                                                         (rec: any) =>
                                                           deleteTollRecord(
-                                                            rec.id
-                                                          )
+                                                            rec.id,
+                                                          ),
                                                       );
                                                     }}
                                                     className="bg-red-600"
@@ -1365,7 +1370,7 @@ export default function RekapBbmTolPage() {
                                             </AlertDialog>
                                           </div>
                                         </td>
-                                      </tr>
+                                      </tr>,
                                     );
                                     isFirstForDate = false;
                                   });

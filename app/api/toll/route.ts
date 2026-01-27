@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: { date: 'desc' },
-      take: 50
     })
 
     return NextResponse.json({ success: true, records })
@@ -42,6 +41,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
@@ -53,11 +53,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Parse the date properly - use UTC to avoid timezone issues
+    const [year, month, day] = data.date.split('-').map(Number)
+    const dateToSave = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+
     const record = await prisma.tollRecord.create({
       data: {
         vehicleId: data.vehicleId,
-        // Add T12:00:00 to prevent timezone shift issues
-        date: new Date(data.date + 'T12:00:00'),
+        date: dateToSave,
         driver: data.driver,
         cost: parseFloat(data.cost),
         remarks: data.remarks,
@@ -75,6 +78,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
@@ -86,11 +90,14 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Parse the date properly - use UTC to avoid timezone issues
+    const [year, month, day] = data.date.split('-').map(Number)
+    const dateToSave = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+
     const record = await prisma.tollRecord.update({
       where: { id: data.id },
       data: {
-        // Add T12:00:00 to prevent timezone shift issues
-        date: new Date(data.date + 'T12:00:00'),
+        date: dateToSave,
         driver: data.driver,
         cost: parseFloat(data.cost),
         remarks: data.remarks,
