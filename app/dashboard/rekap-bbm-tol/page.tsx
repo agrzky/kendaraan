@@ -84,6 +84,13 @@ const LogoBKN = memo(
   () => true, // Always return true from comparison = never re-render
 );
 
+const DRIVERS = [
+  "Cherry Lembek",
+  "Denih",
+  "Akhid Nuroji",
+  "Setio Putra Andika",
+];
+
 export default function RekapBbmTolPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -518,12 +525,23 @@ export default function RekapBbmTolPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Driver</Label>
-                  <Input
+                  <Select
                     value={editForm.driver || ""}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, driver: e.target.value })
+                    onValueChange={(val) =>
+                      setEditForm({ ...editForm, driver: val })
                     }
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih Driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DRIVERS.map((driver) => (
+                        <SelectItem key={driver} value={driver}>
+                          {driver}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Liter</Label>
@@ -659,14 +677,23 @@ export default function RekapBbmTolPage() {
                       {/* Driver */}
                       <div className="space-y-2">
                         <Label>Driver</Label>
-                        <Input
-                          placeholder="Nama Pengemudi"
+                        <Select
                           value={fuelForm.driver}
-                          onChange={(e) =>
-                            setFuelForm({ ...fuelForm, driver: e.target.value })
+                          onValueChange={(val) =>
+                            setFuelForm({ ...fuelForm, driver: val })
                           }
-                          className="rounded-xl"
-                        />
+                        >
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="Pilih Driver" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DRIVERS.map((driver) => (
+                              <SelectItem key={driver} value={driver}>
+                                {driver}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {/* Jenis BBM */}
@@ -682,15 +709,7 @@ export default function RekapBbmTolPage() {
                             <SelectValue placeholder="Pilih Jenis BBM" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Pertalite">Pertalite</SelectItem>
                             <SelectItem value="Pertamax">Pertamax</SelectItem>
-                            <SelectItem value="Pertamax Turbo">
-                              Pertamax Turbo
-                            </SelectItem>
-                            <SelectItem value="Solar">
-                              Solar / Bio Solar
-                            </SelectItem>
-                            <SelectItem value="Dexlite">Dexlite</SelectItem>
                             <SelectItem value="Pertamina Dex">
                               Pertamina Dex
                             </SelectItem>
@@ -1099,14 +1118,23 @@ export default function RekapBbmTolPage() {
 
                       <div className="space-y-2">
                         <Label>Driver</Label>
-                        <Input
-                          placeholder="Nama Pengemudi"
+                        <Select
                           value={tollForm.driver}
-                          onChange={(e) =>
-                            setTollForm({ ...tollForm, driver: e.target.value })
+                          onValueChange={(val) =>
+                            setTollForm({ ...tollForm, driver: val })
                           }
-                          className="rounded-xl"
-                        />
+                        >
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="Pilih Driver" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DRIVERS.map((driver) => (
+                              <SelectItem key={driver} value={driver}>
+                                {driver}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label>Biaya Tol (Rp)</Label>
@@ -1467,15 +1495,26 @@ export default function RekapBbmTolPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Driver</Label>
-                    <Input
+                    <Select
                       value={editTollForm.driver || ""}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         setEditTollForm({
                           ...editTollForm,
-                          driver: e.target.value,
+                          driver: val,
                         })
                       }
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih Driver" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DRIVERS.map((driver) => (
+                          <SelectItem key={driver} value={driver}>
+                            {driver}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2 col-span-2">
                     <Label>Biaya Tol</Label>
