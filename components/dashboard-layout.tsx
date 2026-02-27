@@ -25,6 +25,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { useAuth } from "@/components/auth-guard";
+import { AiChat } from "@/components/ai-chat";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -231,6 +232,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <main className="flex-1 p-4 lg:p-6 pt-2">{children}</main>
       </div>
+
+      {/* AI Chat Assistant */}
+      <AiChat />
     </div>
   );
 }
