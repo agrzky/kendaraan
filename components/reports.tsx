@@ -71,6 +71,8 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
+  const [reportCategory, setReportCategory] = useState("servis");
+
   // State for report data
   const [monthlyServiceCosts, setMonthlyServiceCosts] = useState<any[]>([]);
   const [serviceTypeDistribution, setServiceTypeDistribution] = useState<any[]>(
@@ -83,22 +85,38 @@ export function Reports() {
   const [totalServices, setTotalServices] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
 
+  // State for BBM & Tol
+  const [totalFuelCost, setTotalFuelCost] = useState(0);
+  const [totalTollCost, setTotalTollCost] = useState(0);
+  const [totalLiters, setTotalLiters] = useState(0);
+  const [monthlyFuelTollCosts, setMonthlyFuelTollCosts] = useState<any[]>([]);
+  const [vehicleFuelTollCosts, setVehicleFuelTollCosts] = useState<any[]>([]);
+
   useEffect(() => {
     fetchReportData();
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const fetchReportData = async () => {
     try {
       setLoading(true);
 
-      // Fetch maintenances
-      const response = await fetch("/api/maintenances");
-      const data = await response.json();
+      const [resMaintenances, resFuel, resToll] = await Promise.all([
+        fetch("/api/maintenances"),
+        fetch("/api/fuel"),
+        fetch("/api/toll")
+      ]);
 
-      if (data.success && data.maintenances.length > 0) {
-        const maintenances = data.maintenances;
+      const dataMaintenances = await resMaintenances.json();
+      const dataFuel = await resFuel.json();
+      const dataToll = await resToll.json();
 
-        // Calculate totals
+      if (dataMaintenances.success && dataMaintenances.maintenances.length > 0) {
+        const maintenances = dataMaintenances.maintenances.filter((m: any) => {
+          if (!dateFrom || !dateTo) return true;
+          const recordDate = m.maintenanceDate.substring(0, 10);
+          return recordDate >= dateFrom && recordDate <= dateTo;
+        });
+
         const total = maintenances.length;
         const totalCostValue = maintenances.reduce(
           (sum: number, m: any) => sum + (m.cost || 0),
@@ -108,7 +126,6 @@ export function Reports() {
         setTotalServices(total);
         setTotalCost(totalCostValue);
 
-        // Aggregate monthly data
         const monthlyData: {
           [key: string]: { cost: number; services: number };
         } = {};
@@ -132,7 +149,6 @@ export function Reports() {
         );
         setMonthlyServiceCosts(monthlyArray);
 
-        // Aggregate service type distribution
         const typeData: { [key: string]: { count: number; cost: number } } = {};
         const colors = [
           "#3b82f6",
@@ -162,7 +178,6 @@ export function Reports() {
         );
         setServiceTypeDistribution(typeArray);
 
-        // Aggregate vehicle frequency
         const vehicleData: {
           [key: string]: { services: number; cost: number; name: string };
         } = {};
@@ -189,12 +204,86 @@ export function Reports() {
         }));
         setVehicleServiceFrequency(vehicleArray);
       } else {
-        // Empty state
         setTotalServices(0);
         setTotalCost(0);
         setMonthlyServiceCosts([]);
         setServiceTypeDistribution([]);
         setVehicleServiceFrequency([]);
+      }
+
+      if (dataFuel.success && dataToll.success) {
+        const excludedPlates = ["B 7381 TPA", "F 1562 H"];
+        const fuels = dataFuel.records.filter((r: any) => {
+          if (excludedPlates.includes(r.vehicle?.licensePlate)) return false;
+          if (!dateFrom || !dateTo) return true;
+          const recordDate = r.date.substring(0, 10);
+          return recordDate >= dateFrom && recordDate <= dateTo;
+        });
+        const tolls = dataToll.records.filter((r: any) => {
+          if (excludedPlates.includes(r.vehicle?.licensePlate)) return false;
+          if (!dateFrom || !dateTo) return true;
+          const recordDate = r.date.substring(0, 10);
+          return recordDate >= dateFrom && recordDate <= dateTo;
+        });
+
+        const fuelCost = fuels.reduce((sum: number, r: any) => sum + (r.totalCost || 0), 0);
+        const tollCost = tolls.reduce((sum: number, r: any) => sum + (r.cost || 0), 0);
+        const liters = fuels.reduce((sum: number, r: any) => sum + (r.liters || 0), 0);
+
+        setTotalFuelCost(fuelCost);
+        setTotalTollCost(tollCost);
+        setTotalLiters(liters);
+
+        const monthlyData: { [key: string]: { fuel: number; toll: number } } = {};
+        
+        const processDate = (dateStr: string, cost: number, isFuel: boolean) => {
+          const date = new Date(dateStr);
+          const monthKey = date.toLocaleDateString("id-ID", { month: "short" });
+          if (!monthlyData[monthKey]) monthlyData[monthKey] = { fuel: 0, toll: 0 };
+          if (isFuel) monthlyData[monthKey].fuel += cost;
+          else monthlyData[monthKey].toll += cost;
+        };
+
+        fuels.forEach((r: any) => processDate(r.date, r.totalCost || 0, true));
+        tolls.forEach((r: any) => processDate(r.date, r.cost || 0, false));
+
+        const monthlyArray = Object.entries(monthlyData).map(([month, data]) => ({
+          month,
+          fuel: data.fuel,
+          toll: data.toll,
+          total: data.fuel + data.toll
+        }));
+        setMonthlyFuelTollCosts(monthlyArray);
+
+        const vehicleData: { [key: string]: { fuel: number; toll: number; name: string } } = {};
+        
+        fuels.forEach((r: any) => {
+          const vehicleId = r.vehicleId;
+          const name = `${r.vehicle.licensePlate} - ${r.vehicle.brand} ${r.vehicle.model}`;
+          if (!vehicleData[vehicleId]) vehicleData[vehicleId] = { fuel: 0, toll: 0, name };
+          vehicleData[vehicleId].fuel += r.totalCost || 0;
+        });
+        
+        tolls.forEach((r: any) => {
+          const vehicleId = r.vehicleId;
+          const name = `${r.vehicle.licensePlate} - ${r.vehicle.brand} ${r.vehicle.model}`;
+          if (!vehicleData[vehicleId]) vehicleData[vehicleId] = { fuel: 0, toll: 0, name };
+          vehicleData[vehicleId].toll += r.cost || 0;
+        });
+
+        const vehicleArray = Object.values(vehicleData).map(data => ({
+          vehicle: data.name,
+          fuel: data.fuel,
+          toll: data.toll,
+          total: data.fuel + data.toll
+        }));
+        setVehicleFuelTollCosts(vehicleArray);
+      } else {
+        setTotalFuelCost(0);
+        setTotalTollCost(0);
+        setTotalLiters(0);
+        setMonthlyFuelTollCosts([]);
+        setVehicleFuelTollCosts([]);
       }
     } catch (error) {
       console.error("Error fetching report data:", error);
@@ -248,7 +337,7 @@ export function Reports() {
 
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("LAPORAN SERVIS KENDARAAN", 40, 28);
+      doc.text(reportCategory === 'servis' ? "LAPORAN SERVIS KENDARAAN" : "LAPORAN BBM & TOL", 40, 28);
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
@@ -271,82 +360,148 @@ export function Reports() {
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
 
-      // Layout summary in a grid-like structure without borders
-      doc.text(`Total Servis:`, 14, 65);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${totalServices}`, 60, 65);
-
-      doc.setFont("helvetica", "normal");
-      doc.text(`Total Biaya:`, 14, 72);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Rp ${totalCost.toLocaleString("id-ID")}`, 60, 72);
-
-      // Monthly Service Costs Table
-      if (monthlyServiceCosts.length > 0) {
-        doc.setFontSize(14);
+      if (reportCategory === 'servis') {
+        doc.text(`Total Servis:`, 14, 65);
         doc.setFont("helvetica", "bold");
-        doc.text("Biaya Servis Bulanan", 14, 95);
+        doc.text(`${totalServices}`, 60, 65);
 
-        autoTable(doc, {
-          startY: 100,
-          head: [["Bulan", "Jumlah Servis", "Total Biaya"]],
-          body: monthlyServiceCosts.map((item) => [
-            item.month,
-            item.services.toString(),
-            `Rp ${item.cost.toLocaleString("id-ID")}`,
-          ]),
-          theme: "striped",
-          headStyles: { fillColor: [124, 58, 237], textColor: 255 },
-          styles: { fontSize: 10 },
-        });
-      }
-
-      // Service Type Distribution Table
-      if (serviceTypeDistribution.length > 0) {
-        const finalY = (doc as any).lastAutoTable?.finalY || 100;
-
-        doc.setFontSize(14);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Total Biaya:`, 14, 72);
         doc.setFont("helvetica", "bold");
-        doc.text("Distribusi Jenis Servis", 14, finalY + 15);
+        doc.text(`Rp ${totalCost.toLocaleString("id-ID")}`, 60, 72);
 
-        autoTable(doc, {
-          startY: finalY + 20,
-          head: [["Jenis Servis", "Jumlah", "Total Biaya"]],
-          body: serviceTypeDistribution.map((item) => [
-            item.type,
-            item.count.toString(),
-            `Rp ${item.cost.toLocaleString("id-ID")}`,
-          ]),
-          theme: "striped",
-          headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-          styles: { fontSize: 10 },
-        });
-      }
+        // Monthly Service Costs Table
+        if (monthlyServiceCosts.length > 0) {
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Biaya Servis Bulanan", 14, 95);
 
-      // Add new page for Vehicle Service Frequency
-      if (vehicleServiceFrequency.length > 0) {
-        doc.addPage();
+          autoTable(doc, {
+            startY: 100,
+            head: [["Bulan", "Jumlah Servis", "Total Biaya"]],
+            body: monthlyServiceCosts.map((item) => [
+              item.month,
+              item.services.toString(),
+              `Rp ${item.cost.toLocaleString("id-ID")}`,
+            ]),
+            theme: "striped",
+            headStyles: { fillColor: [124, 58, 237], textColor: 255 },
+            styles: { fontSize: 10 },
+          });
+        }
 
-        doc.setFontSize(14);
+        // Service Type Distribution Table
+        if (serviceTypeDistribution.length > 0) {
+          const finalY = (doc as any).lastAutoTable?.finalY || 100;
+
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Distribusi Jenis Servis", 14, finalY + 15);
+
+          autoTable(doc, {
+            startY: finalY + 20,
+            head: [["Jenis Servis", "Jumlah", "Total Biaya"]],
+            body: serviceTypeDistribution.map((item) => [
+              item.type,
+              item.count.toString(),
+              `Rp ${item.cost.toLocaleString("id-ID")}`,
+            ]),
+            theme: "striped",
+            headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+            styles: { fontSize: 10 },
+          });
+        }
+
+        // Add new page for Vehicle Service Frequency
+        if (vehicleServiceFrequency.length > 0) {
+          doc.addPage();
+
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Frekuensi Servis per Kendaraan", 14, 20);
+
+          autoTable(doc, {
+            startY: 25,
+            head: [["Kendaraan", "Jumlah Servis", "Total Biaya", "Rata-rata"]],
+            body: vehicleServiceFrequency.map((item) => [
+              item.vehicle,
+              item.services.toString(),
+              `Rp ${item.cost.toLocaleString("id-ID")}`,
+              `Rp ${(item.cost / item.services).toLocaleString("id-ID", {
+                maximumFractionDigits: 0,
+              })}`,
+            ]),
+            theme: "striped",
+            headStyles: { fillColor: [249, 115, 22], textColor: 255 },
+            styles: { fontSize: 9 },
+            columnStyles: { 0: { cellWidth: 70 } },
+          });
+        }
+      } else {
+        // BBM & Tol PDF Layout
+        doc.text(`Biaya BBM:`, 14, 65);
         doc.setFont("helvetica", "bold");
-        doc.text("Frekuensi Servis per Kendaraan", 14, 20);
+        doc.text(`Rp ${totalFuelCost.toLocaleString("id-ID")}`, 60, 65);
 
-        autoTable(doc, {
-          startY: 25,
-          head: [["Kendaraan", "Jumlah Servis", "Total Biaya", "Rata-rata"]],
-          body: vehicleServiceFrequency.map((item) => [
-            item.vehicle,
-            item.services.toString(),
-            `Rp ${item.cost.toLocaleString("id-ID")}`,
-            `Rp ${(item.cost / item.services).toLocaleString("id-ID", {
-              maximumFractionDigits: 0,
-            })}`,
-          ]),
-          theme: "striped",
-          headStyles: { fillColor: [249, 115, 22], textColor: 255 },
-          styles: { fontSize: 9 },
-          columnStyles: { 0: { cellWidth: 70 } },
-        });
+        doc.setFont("helvetica", "normal");
+        doc.text(`Biaya Tol:`, 14, 72);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Rp ${totalTollCost.toLocaleString("id-ID")}`, 60, 72);
+
+        doc.setFont("helvetica", "normal");
+        doc.text(`Total Liter:`, 110, 65);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${totalLiters.toFixed(2)} L`, 150, 65);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`Total Biaya:`, 110, 72);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Rp ${(totalFuelCost + totalTollCost).toLocaleString("id-ID")}`, 150, 72);
+
+        // Monthly BBM & Tol Costs Table
+        if (monthlyFuelTollCosts.length > 0) {
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Tren Biaya Bulanan", 14, 95);
+
+          autoTable(doc, {
+            startY: 100,
+            head: [["Bulan", "BBM", "Tol", "Total"]],
+            body: monthlyFuelTollCosts.map((item) => [
+              item.month,
+              `Rp ${item.fuel.toLocaleString("id-ID")}`,
+              `Rp ${item.toll.toLocaleString("id-ID")}`,
+              `Rp ${item.total.toLocaleString("id-ID")}`,
+            ]),
+            theme: "striped",
+            headStyles: { fillColor: [234, 88, 12], textColor: 255 },
+            styles: { fontSize: 10 },
+          });
+        }
+
+        // Add new page for Vehicle Expenses
+        if (vehicleFuelTollCosts.length > 0) {
+          doc.addPage();
+
+          doc.setFontSize(14);
+          doc.setFont("helvetica", "bold");
+          doc.text("Biaya per Kendaraan", 14, 20);
+
+          autoTable(doc, {
+            startY: 25,
+            head: [["Kendaraan", "BBM", "Tol", "Total"]],
+            body: vehicleFuelTollCosts.map((item) => [
+              item.vehicle,
+              `Rp ${item.fuel.toLocaleString("id-ID")}`,
+              `Rp ${item.toll.toLocaleString("id-ID")}`,
+              `Rp ${item.total.toLocaleString("id-ID")}`,
+            ]),
+            theme: "striped",
+            headStyles: { fillColor: [202, 138, 4], textColor: 255 },
+            styles: { fontSize: 9 },
+            columnStyles: { 0: { cellWidth: 70 } },
+          });
+        }
       }
 
       // Footer
@@ -366,7 +521,7 @@ export function Reports() {
       }
 
       // Save the PDF
-      const fileName = `Laporan_Servis_${dateFrom}_${dateTo}.pdf`;
+      const fileName = reportCategory === 'servis' ? `Laporan_Servis_${dateFrom}_${dateTo}.pdf` : `Laporan_BBM_Tol_${dateFrom}_${dateTo}.pdf`;
       doc.save(fileName);
 
       toast.success("Laporan PDF berhasil dibuat!", {
@@ -448,7 +603,7 @@ export function Reports() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-8 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <div className="space-y-2">
                 <Label
                   htmlFor="dateFrom"
@@ -478,6 +633,23 @@ export function Reports() {
                   onChange={(e) => setDateTo(e.target.value)}
                   className="rounded-xl border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 bg-white/50 h-11"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="reportCategory"
+                  className="text-sm font-bold text-gray-700 uppercase tracking-wider"
+                >
+                  Kategori
+                </Label>
+                <Select value={reportCategory} onValueChange={setReportCategory}>
+                  <SelectTrigger className="rounded-xl border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 bg-white/50 h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="servis">Servis Kendaraan</SelectItem>
+                    <SelectItem value="bbm_tol">BBM & Tol</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label
@@ -523,64 +695,137 @@ export function Reports() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
-              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                Total Servis
-              </CardTitle>
-              <div className="p-2.5 bg-blue-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-              </div>
-            </CardHeader>
-            <CardContent className="relative z-10 px-6 pb-6">
-              <div className="text-3xl font-extrabold text-blue-900 mb-1">
-                {totalServices}
-              </div>
-              <p className="text-xs font-semibold text-blue-600/80 flex items-center gap-1 bg-blue-50 w-fit px-2 py-1 rounded-lg">
-                <TrendingUp className="h-3 w-3" />
-                Periode ini
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      {reportCategory === 'servis' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
+                <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  Total Servis
+                </CardTitle>
+                <div className="p-2.5 bg-blue-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10 px-6 pb-6">
+                <div className="text-3xl font-extrabold text-blue-900 mb-1">
+                  {totalServices}
+                </div>
+                <p className="text-xs font-semibold text-blue-600/80 flex items-center gap-1 bg-blue-50 w-fit px-2 py-1 rounded-lg">
+                  <TrendingUp className="h-3 w-3" />
+                  Periode ini
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-        <div>
-          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-green-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
-              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                Total Biaya
-              </CardTitle>
-              <div className="p-2.5 bg-green-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <DollarSign className="h-5 w-5 text-green-600" />
-              </div>
-            </CardHeader>
-            <CardContent className="relative z-10 px-6 pb-6">
-              <div className="text-3xl font-extrabold text-green-900 mb-1">
-                Rp {totalCost.toLocaleString("id-ID")}
-              </div>
-              <p className="text-xs font-semibold text-green-600/80 flex items-center gap-1 bg-green-50 w-fit px-2 py-1 rounded-lg">
-                {totalServices > 0 ? (
-                  <>
-                    <TrendingUp className="h-3 w-3" />
-                    Total semua servis
-                  </>
-                ) : (
-                  "Belum ada data"
-                )}
-              </p>
-            </CardContent>
-          </Card>
+          <div>
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-green-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
+                <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  Total Biaya
+                </CardTitle>
+                <div className="p-2.5 bg-green-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10 px-6 pb-6">
+                <div className="text-3xl font-extrabold text-green-900 mb-1">
+                  Rp {totalCost.toLocaleString("id-ID")}
+                </div>
+                <p className="text-xs font-semibold text-green-600/80 flex items-center gap-1 bg-green-50 w-fit px-2 py-1 rounded-lg">
+                  {totalServices > 0 ? (
+                    <>
+                      <TrendingUp className="h-3 w-3" />
+                      Total semua servis
+                    </>
+                  ) : (
+                    "Belum ada data"
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div>
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
+                <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  Biaya BBM
+                </CardTitle>
+                <div className="p-2.5 bg-orange-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="h-5 w-5 text-orange-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10 px-6 pb-6">
+                <div className="text-2xl font-extrabold text-orange-900 mb-1">
+                  Rp {totalFuelCost.toLocaleString("id-ID")}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
+                <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  Biaya Tol
+                </CardTitle>
+                <div className="p-2.5 bg-yellow-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="h-5 w-5 text-yellow-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10 px-6 pb-6">
+                <div className="text-2xl font-extrabold text-yellow-900 mb-1">
+                  Rp {totalTollCost.toLocaleString("id-ID")}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
+                <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  Total Biaya
+                </CardTitle>
+                <div className="p-2.5 bg-green-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10 px-6 pb-6">
+                <div className="text-2xl font-extrabold text-green-900 mb-1">
+                  Rp {(totalFuelCost + totalTollCost).toLocaleString("id-ID")}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white rounded-[2rem] group">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10 px-6 pt-6">
+                <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  Total Liter BBM
+                </CardTitle>
+                <div className="p-2.5 bg-blue-100/50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                  <Car className="h-5 w-5 text-blue-600" />
+                </div>
+              </CardHeader>
+              <CardContent className="relative z-10 px-6 pb-6">
+                <div className="text-2xl font-extrabold text-blue-900 mb-1">
+                  {totalLiters.toFixed(2)} L
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Report Tabs */}
       <div>
         <Tabs defaultValue="trends" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-white/40 backdrop-blur-md p-1.5 rounded-2xl border border-gray-100 shadow-sm">
+          <TabsList className={reportCategory === 'servis' ? "grid w-full grid-cols-3 bg-white/40 backdrop-blur-md p-1.5 rounded-2xl border border-gray-100 shadow-sm" : "grid w-full grid-cols-2 bg-white/40 backdrop-blur-md p-1.5 rounded-2xl border border-gray-100 shadow-sm"}>
             <TabsTrigger
               value="trends"
               className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md rounded-xl transition-all duration-300 flex items-center gap-2 py-2.5 font-semibold text-gray-600"
@@ -588,13 +833,15 @@ export function Reports() {
               <LineChartIcon className="w-4 h-4" />
               Tren Biaya
             </TabsTrigger>
-            <TabsTrigger
-              value="services"
-              className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md rounded-xl transition-all duration-300 flex items-center gap-2 py-2.5 font-semibold text-gray-600"
-            >
-              <PieChartIcon className="w-4 h-4" />
-              Jenis Servis
-            </TabsTrigger>
+            {reportCategory === 'servis' && (
+              <TabsTrigger
+                value="services"
+                className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md rounded-xl transition-all duration-300 flex items-center gap-2 py-2.5 font-semibold text-gray-600"
+              >
+                <PieChartIcon className="w-4 h-4" />
+                Jenis Servis
+              </TabsTrigger>
+            )}
             <TabsTrigger
               value="vehicles"
               className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md rounded-xl transition-all duration-300 flex items-center gap-2 py-2.5 font-semibold text-gray-600"
@@ -620,84 +867,109 @@ export function Reports() {
               <CardContent className="p-8">
                 <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyServiceCosts}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="rgba(0,0,0,0.05)"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="month"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{
-                          fill: "#6b7280",
-                          fontSize: 12,
-                          fontWeight: 500,
-                        }}
-                        dy={10}
-                      />
-                      <YAxis
-                        tickFormatter={(value) =>
-                          `${(value / 1000000).toFixed(0)}M`
-                        }
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{
-                          fill: "#6b7280",
-                          fontSize: 12,
-                          fontWeight: 500,
-                        }}
-                        dx={-10}
-                      />
-                      <Tooltip
-                        formatter={(value: number | undefined) => [
-                          `Rp ${(value ?? 0).toLocaleString("id-ID")}`,
-                          "Biaya",
-                        ]}
-                        labelFormatter={(label) => `Bulan: ${label}`}
-                        contentStyle={{
-                          backgroundColor: "rgba(255, 255, 255, 0.9)",
-                          backdropFilter: "blur(12px)",
-                          border: "1px solid rgba(255, 255, 255, 0.5)",
-                          borderRadius: "16px",
-                          boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-                          padding: "12px 16px",
-                        }}
-                        itemStyle={{ color: "#4f46e5", fontWeight: 600 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="cost"
-                        stroke="url(#colorGradient)"
-                        strokeWidth={4}
-                        dot={{
-                          fill: "white",
-                          stroke: "#8b5cf6",
-                          strokeWidth: 3,
-                          r: 6,
-                        }}
-                        activeDot={{
-                          r: 8,
-                          stroke: "#8b5cf6",
-                          strokeWidth: 0,
-                          fill: "#8b5cf6",
-                        }}
-                        animationDuration={1500}
-                      />
-                      <defs>
-                        <linearGradient
-                          id="colorGradient"
-                          x1="0"
-                          y1="0"
-                          x2="1"
-                          y2="0"
-                        >
-                          <stop offset="0%" stopColor="#8b5cf6" />
-                          <stop offset="100%" stopColor="#4f46e5" />
-                        </linearGradient>
-                      </defs>
-                    </LineChart>
+                    {reportCategory === 'servis' ? (
+                      <LineChart data={monthlyServiceCosts}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="rgba(0,0,0,0.05)"
+                          vertical={false}
+                        />
+                        <XAxis
+                          dataKey="month"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{
+                            fill: "#6b7280",
+                            fontSize: 12,
+                            fontWeight: 500,
+                          }}
+                          dy={10}
+                        />
+                        <YAxis
+                          tickFormatter={(value) =>
+                            `${(value / 1000000).toFixed(0)}M`
+                          }
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{
+                            fill: "#6b7280",
+                            fontSize: 12,
+                            fontWeight: 500,
+                          }}
+                          dx={-10}
+                        />
+                        <Tooltip
+                          formatter={(value: number | undefined) => [
+                            `Rp ${(value ?? 0).toLocaleString("id-ID")}`,
+                            "Biaya",
+                          ]}
+                          labelFormatter={(label) => `Bulan: ${label}`}
+                          contentStyle={{
+                            backgroundColor: "rgba(255, 255, 255, 0.9)",
+                            backdropFilter: "blur(12px)",
+                            border: "1px solid rgba(255, 255, 255, 0.5)",
+                            borderRadius: "16px",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                            padding: "12px 16px",
+                          }}
+                          itemStyle={{ color: "#4f46e5", fontWeight: 600 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="cost"
+                          stroke="url(#colorGradient)"
+                          strokeWidth={4}
+                          dot={{
+                            fill: "white",
+                            stroke: "#8b5cf6",
+                            strokeWidth: 3,
+                            r: 6,
+                          }}
+                          activeDot={{
+                            r: 8,
+                            stroke: "#8b5cf6",
+                            strokeWidth: 0,
+                            fill: "#8b5cf6",
+                          }}
+                          animationDuration={1500}
+                        />
+                        <defs>
+                          <linearGradient
+                            id="colorGradient"
+                            x1="0"
+                            y1="0"
+                            x2="1"
+                            y2="0"
+                          >
+                            <stop offset="0%" stopColor="#8b5cf6" />
+                            <stop offset="100%" stopColor="#4f46e5" />
+                          </linearGradient>
+                        </defs>
+                      </LineChart>
+                    ) : (
+                      <LineChart data={monthlyFuelTollCosts}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" vertical={false} />
+                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "#6b7280", fontSize: 12, fontWeight: 500 }} dy={10} />
+                        <YAxis tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`} axisLine={false} tickLine={false} tick={{ fill: "#6b7280", fontSize: 12, fontWeight: 500 }} dx={-10} />
+                        <Tooltip
+                          formatter={(value: any, name: any) => [
+                            `Rp ${(value ?? 0).toLocaleString("id-ID")}`,
+                            name === 'fuel' ? 'BBM' : 'Tol',
+                          ]}
+                          labelFormatter={(label) => `Bulan: ${label}`}
+                          contentStyle={{
+                            backgroundColor: "rgba(255, 255, 255, 0.9)",
+                            backdropFilter: "blur(12px)",
+                            border: "1px solid rgba(255, 255, 255, 0.5)",
+                            borderRadius: "16px",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                            padding: "12px 16px",
+                          }}
+                        />
+                        <Line type="monotone" dataKey="fuel" stroke="#ea580c" strokeWidth={4} name="fuel" dot={{ fill: "white", stroke: "#ea580c", strokeWidth: 3, r: 6 }} activeDot={{ r: 8, stroke: "#ea580c", strokeWidth: 0, fill: "#ea580c" }} />
+                        <Line type="monotone" dataKey="toll" stroke="#ca8a04" strokeWidth={4} name="toll" dot={{ fill: "white", stroke: "#ca8a04", strokeWidth: 3, r: 6 }} activeDot={{ r: 8, stroke: "#ca8a04", strokeWidth: 0, fill: "#ca8a04" }} />
+                      </LineChart>
+                    )}
                   </ResponsiveContainer>
                 </div>
               </CardContent>
@@ -858,58 +1130,100 @@ export function Reports() {
                   <div className="p-3 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl shadow-lg shadow-orange-500/20">
                     <Car className="w-5 h-5 text-white" />
                   </div>
-                  Frekuensi Servis per Kendaraan
+                  {reportCategory === 'servis' ? 'Frekuensi Servis per Kendaraan' : 'Total Biaya per Kendaraan'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-gray-100">
-                        <TableHead className="font-bold text-gray-500 uppercase tracking-wider text-xs pl-8 py-5">
-                          Kendaraan
-                        </TableHead>
-                        <TableHead className="text-center font-bold text-gray-500 uppercase tracking-wider text-xs py-5">
-                          Jumlah Servis
-                        </TableHead>
-                        <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs py-5">
-                          Total Biaya
-                        </TableHead>
-                        <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs pr-8 py-5">
-                          Rata-rata per Servis
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {vehicleServiceFrequency.map((vehicle, index) => (
-                        <tr
-                          key={index}
-                          className="hover:bg-orange-50/50 transition-all duration-200 border-gray-100"
-                        >
-                          <TableCell className="font-bold text-gray-900 pl-8">
-                            {vehicle.vehicle}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge
-                              variant="outline"
-                              className="font-bold bg-white border-gray-200 shadow-sm"
-                            >
-                              {vehicle.services}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-gray-900">
-                            Rp {vehicle.cost.toLocaleString("id-ID")}
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-orange-600 pr-8">
-                            Rp{" "}
-                            {(vehicle.cost / vehicle.services).toLocaleString(
-                              "id-ID"
-                            )}
-                          </TableCell>
-                        </tr>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  {reportCategory === 'servis' ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-gray-100">
+                          <TableHead className="font-bold text-gray-500 uppercase tracking-wider text-xs pl-8 py-5">
+                            Kendaraan
+                          </TableHead>
+                          <TableHead className="text-center font-bold text-gray-500 uppercase tracking-wider text-xs py-5">
+                            Jumlah Servis
+                          </TableHead>
+                          <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs py-5">
+                            Total Biaya
+                          </TableHead>
+                          <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs pr-8 py-5">
+                            Rata-rata per Servis
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {vehicleServiceFrequency.map((vehicle, index) => (
+                          <tr
+                            key={index}
+                            className="hover:bg-orange-50/50 transition-all duration-200 border-gray-100"
+                          >
+                            <TableCell className="font-bold text-gray-900 pl-8">
+                              {vehicle.vehicle}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge
+                                variant="outline"
+                                className="font-bold bg-white border-gray-200 shadow-sm"
+                              >
+                                {vehicle.services}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-gray-900">
+                              Rp {vehicle.cost.toLocaleString("id-ID")}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-orange-600 pr-8">
+                              Rp{" "}
+                              {(vehicle.cost / vehicle.services).toLocaleString(
+                                "id-ID"
+                              )}
+                            </TableCell>
+                          </tr>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-gray-100">
+                          <TableHead className="font-bold text-gray-500 uppercase tracking-wider text-xs pl-8 py-5">
+                            Kendaraan
+                          </TableHead>
+                          <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs py-5">
+                            Biaya BBM
+                          </TableHead>
+                          <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs py-5">
+                            Biaya Tol
+                          </TableHead>
+                          <TableHead className="text-right font-bold text-gray-500 uppercase tracking-wider text-xs pr-8 py-5">
+                            Total Biaya
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {vehicleFuelTollCosts.map((vehicle, index) => (
+                          <tr
+                            key={index}
+                            className="hover:bg-orange-50/50 transition-all duration-200 border-gray-100"
+                          >
+                            <TableCell className="font-bold text-gray-900 pl-8">
+                              {vehicle.vehicle}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-gray-900">
+                              Rp {vehicle.fuel.toLocaleString("id-ID")}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-gray-900">
+                              Rp {vehicle.toll.toLocaleString("id-ID")}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-orange-600 pr-8">
+                              Rp {vehicle.total.toLocaleString("id-ID")}
+                            </TableCell>
+                          </tr>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </div>
               </CardContent>
             </Card>

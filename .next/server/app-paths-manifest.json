@@ -1,11 +1,11 @@
 {
-  "/dashboard/page": "app/dashboard/page.js",
-  "/api/auth/me/route": "app/api/auth/me/route.js",
   "/page": "app/page.js",
-  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
   "/dashboard/vehicles/page": "app/dashboard/vehicles/page.js",
-  "/api/vehicles/route": "app/api/vehicles/route.js",
-  "/api/dashboard/stats/route": "app/api/dashboard/stats/route.js",
   "/dashboard/rekap-bbm-tol/page": "app/dashboard/rekap-bbm-tol/page.js",
-  "/api/fuel/route": "app/api/fuel/route.js"
+  "/dashboard/reports/page": "app/dashboard/reports/page.js",
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/api/fuel/route": "app/api/fuel/route.js",
+  "/api/maintenances/route": "app/api/maintenances/route.js",
+  "/api/toll/route": "app/api/toll/route.js"
 }

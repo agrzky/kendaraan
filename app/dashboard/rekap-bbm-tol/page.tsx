@@ -380,14 +380,16 @@ export default function RekapBbmTolPage() {
 
   // Auto-calc for Edit Form
   useEffect(() => {
-    if (editingRecord && editForm.liters && editForm.pricePerLiter) {
-      const total =
-        parseFloat(editForm.liters) * parseFloat(editForm.pricePerLiter);
-      if (!isNaN(total)) {
-        setEditForm((prev: any) => ({ ...prev, totalCost: total.toString() }));
+    if (editingRecord && editForm.totalCost && editForm.pricePerLiter) {
+      const price = parseFloat(editForm.pricePerLiter);
+      if (price > 0) {
+        const liters = parseFloat(editForm.totalCost) / price;
+        if (!isNaN(liters)) {
+          setEditForm((prev: any) => ({ ...prev, liters: liters.toString() }));
+        }
       }
     }
-  }, [editForm.liters, editForm.pricePerLiter]);
+  }, [editForm.totalCost, editForm.pricePerLiter]);
 
   const handleTollSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -419,16 +421,18 @@ export default function RekapBbmTolPage() {
     }
   };
 
-  // Auto-calculate Total Cost for Fuel if Price and Liters are known
+  // Auto-calculate Liters for Fuel if Total Cost and Price are known
   useEffect(() => {
-    if (fuelForm.liters && fuelForm.pricePerLiter) {
-      const total =
-        parseFloat(fuelForm.liters) * parseFloat(fuelForm.pricePerLiter);
-      if (!isNaN(total)) {
-        setFuelForm((prev) => ({ ...prev, totalCost: total.toString() }));
+    if (fuelForm.totalCost && fuelForm.pricePerLiter) {
+      const price = parseFloat(fuelForm.pricePerLiter);
+      if (price > 0) {
+        const liters = parseFloat(fuelForm.totalCost) / price;
+        if (!isNaN(liters)) {
+          setFuelForm((prev) => ({ ...prev, liters: liters.toString() }));
+        }
       }
     }
-  }, [fuelForm.liters, fuelForm.pricePerLiter]);
+  }, [fuelForm.totalCost, fuelForm.pricePerLiter]);
 
   // Determine Fuel Type automatically when vehicle is selected
   useEffect(() => {
@@ -722,7 +726,7 @@ export default function RekapBbmTolPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih Driver" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" side="bottom" className="max-h-[250px]">
                       {DRIVERS.map((driver) => (
                         <SelectItem key={driver} value={driver}>
                           {driver}
@@ -732,14 +736,13 @@ export default function RekapBbmTolPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Liter</Label>
+                  <Label>Total Biaya</Label>
                   <Input
                     type="number"
-                    step="0.01"
                     required
-                    value={editForm.liters || ""}
+                    value={editForm.totalCost || ""}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, liters: e.target.value })
+                      setEditForm({ ...editForm, totalCost: e.target.value })
                     }
                   />
                 </div>
@@ -758,11 +761,12 @@ export default function RekapBbmTolPage() {
                   />
                 </div>
                 <div className="space-y-2 col-span-2">
-                  <Label>Total Biaya</Label>
+                  <Label>Jumlah Liter</Label>
                   <Input
-                    value={parseInt(editForm.totalCost || "0").toLocaleString(
-                      "id-ID",
-                    )}
+                    value={parseFloat(editForm.liters || "0").toLocaleString("id-ID", {
+                      minimumFractionDigits: 3,
+                      maximumFractionDigits: 3,
+                    }) + " L"}
                     disabled
                     className="bg-gray-100 font-bold"
                   />
@@ -852,7 +856,7 @@ export default function RekapBbmTolPage() {
                           <SelectTrigger className="rounded-xl">
                             <SelectValue placeholder="Pilih Kendaraan" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" side="bottom" className="max-h-[250px]">
                             {vehicles.map((v) => (
                               <SelectItem key={v.id} value={v.id}>
                                 {v.licensePlate} - {v.brand} {v.model}
@@ -874,7 +878,7 @@ export default function RekapBbmTolPage() {
                           <SelectTrigger className="rounded-xl">
                             <SelectValue placeholder="Pilih Driver" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" side="bottom" className="max-h-[250px]">
                             {DRIVERS.map((driver) => (
                               <SelectItem key={driver} value={driver}>
                                 {driver}
@@ -896,7 +900,7 @@ export default function RekapBbmTolPage() {
                           <SelectTrigger className="rounded-xl">
                             <SelectValue placeholder="Pilih Jenis BBM" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" side="bottom" className="max-h-[250px]">
                             <SelectItem value="Pertamax">Pertamax</SelectItem>
                             <SelectItem value="Pertamina Dex">
                               Pertamina Dex
@@ -907,15 +911,14 @@ export default function RekapBbmTolPage() {
 
                       {/* Perhitungan Biaya */}
                       <div className="space-y-2">
-                        <Label>Jumlah Liter</Label>
+                        <Label>Total Biaya (Rp)</Label>
                         <Input
                           type="number"
-                          step="0.01"
-                          placeholder="0.00"
+                          placeholder="0"
                           required
-                          value={fuelForm.liters}
+                          value={fuelForm.totalCost}
                           onChange={(e) =>
-                            setFuelForm({ ...fuelForm, liters: e.target.value })
+                            setFuelForm({ ...fuelForm, totalCost: e.target.value })
                           }
                           className="rounded-xl"
                         />
@@ -940,13 +943,14 @@ export default function RekapBbmTolPage() {
 
                     <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 flex justify-between items-center">
                       <span className="font-bold text-orange-800">
-                        Total Biaya
+                        Jumlah Liter
                       </span>
                       <span className="text-xl font-extrabold text-orange-600">
-                        Rp{" "}
-                        {parseInt(fuelForm.totalCost || "0").toLocaleString(
-                          "id-ID",
-                        )}
+                        {parseFloat(fuelForm.liters || "0").toLocaleString("id-ID", {
+                          minimumFractionDigits: 3,
+                          maximumFractionDigits: 3,
+                        })}{" "}
+                        L
                       </span>
                     </div>
 
@@ -1273,11 +1277,11 @@ export default function RekapBbmTolPage() {
                       <div className="space-y-2">
                         <Label>Tanggal</Label>
                         <Input
-                          type="date"
+                          type="month"
                           required
-                          value={tollForm.date}
+                          value={tollForm.date ? tollForm.date.substring(0, 7) : ""}
                           onChange={(e) =>
-                            setTollForm({ ...tollForm, date: e.target.value })
+                            setTollForm({ ...tollForm, date: e.target.value ? `${e.target.value}-01` : "" })
                           }
                           className="rounded-xl"
                         />
@@ -1294,7 +1298,7 @@ export default function RekapBbmTolPage() {
                           <SelectTrigger className="rounded-xl">
                             <SelectValue placeholder="Pilih Kendaraan" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" side="bottom" className="max-h-[250px]">
                             {vehicles.map((v) => (
                               <SelectItem key={v.id} value={v.id}>
                                 {v.licensePlate} - {v.brand} {v.model}
@@ -1315,7 +1319,7 @@ export default function RekapBbmTolPage() {
                           <SelectTrigger className="rounded-xl">
                             <SelectValue placeholder="Pilih Driver" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" side="bottom" className="max-h-[250px]">
                             {DRIVERS.map((driver) => (
                               <SelectItem key={driver} value={driver}>
                                 {driver}
