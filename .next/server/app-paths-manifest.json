@@ -1,7 +1,11 @@
 {
-  "/page": "app/page.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/page": "app/page.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/dashboard/vehicles/page": "app/dashboard/vehicles/page.js",
+  "/api/vehicles/route": "app/api/vehicles/route.js",
   "/api/dashboard/stats/route": "app/api/dashboard/stats/route.js",
-  "/api/chat/route": "app/api/chat/route.js"
+  "/dashboard/rekap-bbm-tol/page": "app/dashboard/rekap-bbm-tol/page.js",
+  "/api/fuel/route": "app/api/fuel/route.js"
 }

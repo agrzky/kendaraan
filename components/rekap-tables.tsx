@@ -77,6 +77,118 @@ const formatDate = (date: Date) => {
   });
 };
 
+// Adaptive print handler - bigger fonts for few rows, only scales DOWN for overflow
+const adaptivePrint = (e: React.MouseEvent) => {
+  const printArea = e.currentTarget.closest(".print-area") as HTMLElement;
+  if (!printArea) {
+    window.print();
+    return;
+  }
+
+  const rowCount = printArea.querySelectorAll("tbody tr").length;
+
+  let fs: number, cp: string, ts: number, sts: number;
+  let ls: number, sm: string, sg: string, hp: string, ctp: string;
+
+  if (rowCount <= 5) {
+    fs = 16;
+    cp = "8px 14px";
+    ts = 18;
+    sts = 20;
+    ls = 65;
+    sm = "50px";
+    sg = "80px";
+    hp = "14px 18px";
+    ctp = "20px";
+  } else if (rowCount <= 10) {
+    fs = 14;
+    cp = "6px 12px";
+    ts = 16;
+    sts = 18;
+    ls = 60;
+    sm = "40px";
+    sg = "70px";
+    hp = "12px 16px";
+    ctp = "16px";
+  } else if (rowCount <= 18) {
+    fs = 13;
+    cp = "5px 10px";
+    ts = 15;
+    sts = 16;
+    ls = 55;
+    sm = "30px";
+    sg = "60px";
+    hp = "10px 14px";
+    ctp = "14px";
+  } else if (rowCount <= 28) {
+    fs = 12;
+    cp = "4px 8px";
+    ts = 14;
+    sts = 15;
+    ls = 50;
+    sm = "20px";
+    sg = "50px";
+    hp = "8px 12px";
+    ctp = "12px";
+  } else {
+    fs = 12;
+    cp = "3px 6px";
+    ts = 13;
+    sts = 14;
+    ls = 45;
+    sm = "14px";
+    sg = "40px";
+    hp = "6px 10px";
+    ctp = "10px";
+  }
+
+  const existing = document.getElementById("dynamic-print-scale");
+  if (existing) existing.remove();
+
+  const styleEl = document.createElement("style");
+  styleEl.id = "dynamic-print-scale";
+  styleEl.textContent = `
+    @media print {
+      .print-area th, .print-area td { padding: ${cp} !important; font-size: ${fs}px !important; line-height: 1.4 !important; }
+      .print-area th { font-weight: bold !important; }
+      .print-area [class*="CardTitle"] { font-size: ${ts}px !important; }
+      .print-area [class*="CardTitle"] div { font-size: ${sts}px !important; margin-top: 2px !important; }
+      .print-area img, .print-area [role="img"] { width: ${ls}px !important; height: ${ls}px !important; min-width: ${ls}px !important; min-height: ${ls}px !important; }
+      .print-area .mt-12, .print-area .mt-8 { margin-top: ${sm} !important; }
+      .print-area .mb-16 { margin-bottom: ${sg} !important; }
+      .print-area [class*="CardHeader"] { padding: ${hp} !important; }
+      .print-area [class*="CardContent"] { padding: ${ctp} !important; }
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  // Only scale DOWN if content overflows - never scale up
+  requestAnimationFrame(() => {
+    const noPrintEls = printArea.querySelectorAll(".no-print");
+    noPrintEls.forEach((el) => ((el as HTMLElement).style.display = "none"));
+    const contentH = printArea.scrollHeight;
+    noPrintEls.forEach((el) => ((el as HTMLElement).style.display = ""));
+
+    const pageHeight = 1050;
+    if (contentH > pageHeight) {
+      const scale = Math.max(pageHeight / contentH, 0.55);
+      styleEl.textContent += `
+        @media print {
+          .print-area { transform: scale(${scale}) !important; transform-origin: top left !important; width: ${100 / scale}% !important; }
+        }
+      `;
+    }
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        const el = document.getElementById("dynamic-print-scale");
+        if (el) el.remove();
+      }, 1000);
+    }, 150);
+  });
+};
+
 // Memoized Rekap BBM Table Component
 export const RekapBBMTable = memo(function RekapBBMTable({
   selectedVehicle,
@@ -105,7 +217,7 @@ export const RekapBBMTable = memo(function RekapBBMTable({
         <div className="w-[100px] flex justify-end">
           <Button
             variant="outline"
-            onClick={() => window.print()}
+            onClick={adaptivePrint}
             className="no-print gap-2 border-gray-300 hover:bg-gray-100"
           >
             <Printer className="w-4 h-4" /> Print
@@ -347,7 +459,7 @@ export const RekapTolTable = memo(function RekapTolTable({
         <div className="w-[100px] flex justify-end">
           <Button
             variant="outline"
-            onClick={() => window.print()}
+            onClick={adaptivePrint}
             className="no-print gap-2 border-gray-300 hover:bg-gray-100"
           >
             <Printer className="w-4 h-4" /> Print

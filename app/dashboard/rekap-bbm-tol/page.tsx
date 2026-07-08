@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, memo, useMemo, useCallback } from "react";
 import { AuthGuard } from "@/components/auth-guard";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import {
@@ -461,37 +461,225 @@ export default function RekapBbmTolPage() {
   const lastDayOfMonthFuel = getLastDayOfMonth(selectedMonthFuel);
   const lastDayOfMonthToll = getLastDayOfMonth(selectedMonthToll);
 
+  // Adaptive print: bigger fonts for few rows, only scales DOWN for many rows
+  const handlePrint = useCallback((e: React.MouseEvent) => {
+    const button = e.currentTarget;
+    const printArea = button.closest(".print-area") as HTMLElement;
+    if (!printArea) {
+      window.print();
+      return;
+    }
+
+    // Count data rows
+    const rowCount = printArea.querySelectorAll("tbody tr").length;
+
+    // Adaptive sizing tiers
+    let fs: number, cp: string, ts: number, sts: number;
+    let ls: number, sm: string, sg: string, hp: string, ctp: string;
+
+    if (rowCount <= 5) {
+      // Very few rows - extra large
+      fs = 16;
+      cp = "8px 14px";
+      ts = 18;
+      sts = 20;
+      ls = 65;
+      sm = "50px";
+      sg = "80px";
+      hp = "14px 18px";
+      ctp = "20px";
+    } else if (rowCount <= 10) {
+      // Few rows - large
+      fs = 14;
+      cp = "6px 12px";
+      ts = 16;
+      sts = 18;
+      ls = 60;
+      sm = "40px";
+      sg = "70px";
+      hp = "12px 16px";
+      ctp = "16px";
+    } else if (rowCount <= 18) {
+      // Medium rows
+      fs = 13;
+      cp = "5px 10px";
+      ts = 15;
+      sts = 16;
+      ls = 55;
+      sm = "30px";
+      sg = "60px";
+      hp = "10px 14px";
+      ctp = "14px";
+    } else if (rowCount <= 28) {
+      // Many rows
+      fs = 12;
+      cp = "4px 8px";
+      ts = 14;
+      sts = 15;
+      ls = 50;
+      sm = "20px";
+      sg = "50px";
+      hp = "8px 12px";
+      ctp = "12px";
+    } else {
+      // Very many rows
+      fs = 12;
+      cp = "3px 6px";
+      ts = 13;
+      sts = 14;
+      ls = 45;
+      sm = "14px";
+      sg = "40px";
+      hp = "6px 10px";
+      ctp = "10px";
+    }
+
+    // Remove previous style
+    const existing = document.getElementById("dynamic-print-scale");
+    if (existing) existing.remove();
+
+    const styleEl = document.createElement("style");
+    styleEl.id = "dynamic-print-scale";
+    styleEl.textContent = `
+      @media print {
+        .print-area th, .print-area td {
+          padding: ${cp} !important;
+          font-size: ${fs}px !important;
+          line-height: 1.4 !important;
+        }
+        .print-area th { font-weight: bold !important; }
+        .print-area [class*="CardTitle"] { font-size: ${ts}px !important; }
+        .print-area [class*="CardTitle"] div { font-size: ${sts}px !important; margin-top: 2px !important; }
+        .print-area img, .print-area [role="img"] {
+          width: ${ls}px !important; height: ${ls}px !important;
+          min-width: ${ls}px !important; min-height: ${ls}px !important;
+        }
+        .print-area .mt-12, .print-area .mt-8 { margin-top: ${sm} !important; }
+        .print-area .mb-16 { margin-bottom: ${sg} !important; }
+        .print-area [class*="CardHeader"] { padding: ${hp} !important; }
+        .print-area [class*="CardContent"] { padding: ${ctp} !important; }
+      }
+    `;
+    document.head.appendChild(styleEl);
+
+    // Only scale DOWN if content overflows - never scale up
+    requestAnimationFrame(() => {
+      const noPrintEls = printArea.querySelectorAll(".no-print");
+      noPrintEls.forEach((el) => ((el as HTMLElement).style.display = "none"));
+      const contentHeight = printArea.scrollHeight;
+      noPrintEls.forEach((el) => ((el as HTMLElement).style.display = ""));
+
+      // A4 printable height at 96dpi with 10mm margins
+      const pageHeight = 1050;
+      if (contentHeight > pageHeight) {
+        const scale = Math.max(pageHeight / contentHeight, 0.55);
+        styleEl.textContent += `
+          @media print {
+            .print-area {
+              transform: scale(${scale}) !important;
+              transform-origin: top left !important;
+              width: ${100 / scale}% !important;
+            }
+          }
+        `;
+      }
+
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          const el = document.getElementById("dynamic-print-scale");
+          if (el) el.remove();
+        }, 1000);
+      }, 150);
+    });
+  }, []);
+
   return (
     <AuthGuard>
       <DashboardLayout>
-        {/* PRINT STYLES */}
+        {/* PRINT STYLES - Base structural rules only, sizing handled dynamically by JS */}
         <style
           dangerouslySetInnerHTML={{
             __html: `
           @media print {
+            @page {
+              size: A4 portrait;
+              margin: 10mm 12mm;
+            }
+
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              background: white !important;
+            }
+
             body * {
               visibility: hidden;
             }
+
             .print-area, .print-area * {
               visibility: visible;
             }
+
             .print-area {
               position: absolute;
               left: 0;
               top: 0;
-              width: 100%;
+              width: 100% !important;
+              max-width: 100% !important;
+              margin: 0 !important;
+              overflow: visible !important;
+              border-radius: 0 !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
             }
-            /* Hide buttons during print */
+
             .no-print {
               display: none !important;
             }
-            /* Ensure table borders are visible */
+
+            table {
+              border-collapse: collapse !important;
+              width: 100% !important;
+            }
             table, th, td {
               border: 1px solid black !important;
             }
-            /* Remove shadows for clean print */
+
             .print-area, .print-area * {
               box-shadow: none !important;
+              border-radius: 0 !important;
+            }
+
+            .overflow-x-auto, .overflow-hidden {
+              overflow: visible !important;
+            }
+
+            .max-w-4xl, .max-w-xl {
+              max-width: none !important;
+            }
+
+            nav, aside, header, footer,
+            [class*="sidebar"], [class*="Sidebar"],
+            [class*="DashboardLayout"] > *:not(.print-area) {
+              display: none !important;
+            }
+
+            /* Prevent kop from separating */
+            .print-area [class*="CardHeader"] {
+              break-after: avoid !important;
+              page-break-after: avoid !important;
+            }
+            .print-area [class*="CardContent"] {
+              break-before: avoid !important;
+              page-break-before: avoid !important;
+            }
+            thead {
+              break-after: avoid !important;
+              page-break-after: avoid !important;
             }
           }
         `,
@@ -817,7 +1005,7 @@ export default function RekapBbmTolPage() {
                     <div className="w-[100px] flex justify-end">
                       <Button
                         variant="outline"
-                        onClick={() => window.print()}
+                        onClick={handlePrint}
                         className="no-print gap-2 border-gray-300 hover:bg-gray-100"
                       >
                         <Printer className="w-4 h-4" /> Print
@@ -1206,7 +1394,7 @@ export default function RekapBbmTolPage() {
                     <div className="w-[100px] flex justify-end">
                       <Button
                         variant="outline"
-                        onClick={() => window.print()}
+                        onClick={handlePrint}
                         className="no-print gap-2 border-gray-300 hover:bg-gray-100"
                       >
                         <Printer className="w-4 h-4" /> Print
