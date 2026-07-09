@@ -1277,11 +1277,11 @@ export default function RekapBbmTolPage() {
                       <div className="space-y-2">
                         <Label>Tanggal</Label>
                         <Input
-                          type="month"
+                          type="date"
                           required
-                          value={tollForm.date ? tollForm.date.substring(0, 7) : ""}
+                          value={tollForm.date}
                           onChange={(e) =>
-                            setTollForm({ ...tollForm, date: e.target.value ? `${e.target.value}-01` : "" })
+                            setTollForm({ ...tollForm, date: e.target.value })
                           }
                           className="rounded-xl"
                         />
